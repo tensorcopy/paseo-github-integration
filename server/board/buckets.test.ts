@@ -68,7 +68,7 @@ describe("mergeBucketResults", () => {
     expect(merged?.relations).toEqual(["author", "owned"]);
   });
 
-  it("applies the limit to the merged, sorted union rather than per bucket", () => {
+  it("applies the limit per relation and returns the union newest first", () => {
     const buckets: BucketResult[] = [
       {
         relation: "author",
@@ -86,9 +86,24 @@ describe("mergeBucketResults", () => {
       },
     ];
     const result = mergeBucketResults(buckets, toBoardItem, 2);
-    expect(result).toHaveLength(2);
-    // The two newest across both buckets, not the first two encountered.
-    expect(result.map((item) => item.id)).toEqual(["new-1", "new-2"]);
+    expect(result.map((item) => item.id)).toEqual(["new-1", "new-2", "old-2", "old-1"]);
+  });
+
+  it("keeps an older authored item when a newer relation fills the budget", () => {
+    // The review queue this models is what a shared budget spent entirely:
+    // every review request is newer than the one pull request the viewer wrote.
+    const buckets: BucketResult[] = [
+      {
+        relation: "review-requested",
+        nodes: [
+          { id: "review-1", fakeUpdatedAt: "2024-06-03T00:00:00Z" },
+          { id: "review-2", fakeUpdatedAt: "2024-06-02T00:00:00Z" },
+        ],
+      },
+      { relation: "author", nodes: [{ id: "mine", fakeUpdatedAt: "2024-01-01T00:00:00Z" }] },
+    ];
+    const result = mergeBucketResults(buckets, toBoardItem, 2);
+    expect(result.map((item) => item.id)).toContain("mine");
   });
 
   it("drops a node that toBoardItem rejects", () => {

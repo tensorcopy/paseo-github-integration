@@ -82,6 +82,12 @@ export async function runBuckets(
  * null for a node the caller wants dropped entirely (an archived discussion,
  * an empty node from the other inline fragment matching nothing), which is
  * why it runs before the relation is ever recorded.
+ *
+ * `limit` is a budget per relation, not one shared by the union. A shared
+ * budget is spent by whichever relation happens to have the most recently
+ * updated items: a full review queue is newer than almost anything else, so
+ * it took the whole list and left the viewer's own pull requests off a board
+ * that exists to show them.
  */
 export function mergeBucketResults<TNode extends GhSearchNode>(
   buckets: readonly BucketResult[],
@@ -110,5 +116,13 @@ export function mergeBucketResults<TNode extends GhSearchNode>(
   for (const item of byId.values()) {
     item.relations.sort((a, b) => RELATION_ORDER[a] - RELATION_ORDER[b]);
   }
-  return [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).slice(0, limit);
+
+  const items = [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const kept = new Set<string>();
+  for (const relation of new Set(buckets.map((bucket) => bucket.relation))) {
+    for (const item of items.filter((item) => item.relations.includes(relation)).slice(0, limit)) {
+      kept.add(item.id);
+    }
+  }
+  return items.filter((item) => kept.has(item.id));
 }
