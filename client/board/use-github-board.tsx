@@ -5,6 +5,7 @@ import { useBoardFilters } from "./use-board-filters";
 import { useBoardOverlays } from "./use-board-overlays";
 import { useBoardQuery } from "./use-board-query";
 import { useBoardSettings } from "./use-board-settings";
+import { chatLinkFor, useChatLinks } from "./use-chat-links";
 
 /**
  * Everything the board surface needs beyond its own JSX: the fetch and its
@@ -22,11 +23,13 @@ export function useGitHubBoard(props: PluginSurfaceProps, styles: Styles) {
   const settings = useBoardSettings();
   const query = useBoardQuery(props, settings.watchedOwners);
   const filters = useBoardFilters(query.board, settings.display);
+  const chatLinks = useChatLinks(props.host.id);
   const overlays = useBoardOverlays(props, styles, {
     board: query.board,
     promptValues: settings.promptValues,
     mutateBoardCache: query.mutateBoardCache,
     activeOrder: filters.activeOrder,
+    chatLinkForItem: (item) => chatLinkFor(chatLinks, item.url),
   });
 
   return {
@@ -69,6 +72,7 @@ export function useGitHubBoard(props: PluginSurfaceProps, styles: Styles) {
     setBodyWidth: overlays.setBodyWidth,
     detailTarget: overlays.detailTarget,
     detailItem: overlays.detailItem,
+    detailChatLink: overlays.detailChatLink,
     detailProgress: overlays.detailProgress,
     closeDetails: overlays.closeDetails,
     savedFraction: settings.savedFraction,

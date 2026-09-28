@@ -10,6 +10,7 @@ import type { BoardRow, SortOrder } from "../lib/sort";
 import { DETAIL_CLOSE_MS, DETAIL_OPEN_MS } from "../detail/constants";
 import { ItemRow } from "./item-row";
 import type { Styles } from "../theme/use-styles";
+import type { ChatLink } from "./use-chat-links";
 import { LABEL_MENU_MAX_HEIGHT, LABEL_MENU_WIDTH, MENU_MARGIN } from "./label-menu";
 import type { LabelMenuTarget } from "./label-menu";
 
@@ -23,6 +24,7 @@ export interface UseBoardOverlaysInputs {
   mutateBoardCache: (updater: (current: Board) => Board) => void;
   /** The active sort's row label and date accessor, for `ItemRow`'s meta line. */
   activeOrder: SortOrder;
+  chatLinkForItem: (item: BoardItem) => ChatLink | null;
 }
 
 /** What `useBoardOverlays` exposes to the surface. */
@@ -31,6 +33,7 @@ export interface UseBoardOverlaysResult {
   setBodyWidth: (next: number | null) => void;
   detailTarget: { item: BoardItem; type: ColumnId } | null;
   detailItem: BoardItem | null;
+  detailChatLink: ChatLink | null;
   detailProgress: Animated.Value;
   closeDetails: () => void;
   openSendDialog: (item: BoardItem, type: ColumnId) => void;
@@ -58,7 +61,7 @@ export interface UseBoardOverlaysResult {
 export function useBoardOverlays(
   props: PluginSurfaceProps,
   styles: Styles,
-  { board, promptValues, mutateBoardCache, activeOrder }: UseBoardOverlaysInputs,
+  { board, promptValues, mutateBoardCache, activeOrder, chatLinkForItem }: UseBoardOverlaysInputs,
 ): UseBoardOverlaysResult {
   const toast = useToast();
 
@@ -200,6 +203,14 @@ export function useBoardOverlays(
   }, [board, detailTarget]);
 
   const selectedId = detailItem?.id ?? null;
+  const detailChatLink = detailItem === null ? null : chatLinkForItem(detailItem);
+
+  const openChat = useCallback(
+    (chat: ChatLink) => {
+      props.navigation?.openAgent({ agentId: chat.agentId });
+    },
+    [props.navigation],
+  );
 
   /**
    * Opens the launch dialog on this card, with the card's template already
@@ -256,7 +267,9 @@ export function useBoardOverlays(
         selected={row.item.id === selectedId}
         accentColor={props.theme.colors.accent}
         mutedColor={props.theme.colors.foregroundMuted}
+        chatLink={chatLinkForItem(row.item)}
         onOpen={openDetails}
+        onOpenChat={openChat}
         onSend={openSendDialog}
         onLabels={row.type === "discussions" ? null : openLabelMenu}
         type={row.type}
@@ -271,7 +284,9 @@ export function useBoardOverlays(
       selectedId,
       props.theme.colors.accent,
       props.theme.colors.foregroundMuted,
+      chatLinkForItem,
       openDetails,
+      openChat,
       openSendDialog,
       openLabelMenu,
       activeOrder,
@@ -283,6 +298,7 @@ export function useBoardOverlays(
     setBodyWidth,
     detailTarget,
     detailItem,
+    detailChatLink,
     detailProgress,
     closeDetails,
     openSendDialog,
