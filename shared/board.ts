@@ -188,6 +188,13 @@ export const BoardSchema = z.object({
   repositoryProjects: z.record(z.string(), z.string()),
   fetchedAt: z.string(),
   /**
+   * Every GitHub host `gh` is authenticated on — `github.com` and any
+   * GitHub Enterprise hosts — so the client can tell an attachment the
+   * daemon will fetch from an image it refuses. The daemon derives the
+   * list; nothing in the plugin names a host itself.
+   */
+  imageHosts: z.array(z.string()),
+  /**
    * True when these columns are a remembered answer the daemon is already
    * refreshing behind this response. The board paints them right away and
    * asks again shortly after, rather than holding an empty surface for the

@@ -14,11 +14,20 @@
  * exists to serve: the host check alone would let a comment's author pick
  * any `github.com` path and have the daemon fetch it carrying the account's
  * token, which is a forced authenticated request nobody asked the daemon to
- * make. `*.githubusercontent.com` needs no such narrowing — it never receives
- * the token (see `server/images/images.ts`'s redirect handling) and is where
+ * make. `*.githubusercontent.com` needs no such narrowing — it is where
  * every other GitHub-hosted image, including raw content, actually lives.
+ * The token one of its hops may carry is the github.com one, decided in
+ * `server/images/images.ts`: the CDNs are github.com's own hosting, not
+ * hosts `gh` is logged in to, and an Enterprise host's token never leaves
+ * that host.
+ *
+ * A GitHub Enterprise host serves the same `/user-attachments/` paths, so it
+ * is accepted under the same prefix — but only a host the account is actually
+ * authenticated on, because that is the set the daemon holds a token for. The
+ * caller supplies it; nothing here names any host itself, which is what keeps
+ * the daemon's token inside the hosts the user chose to log in to.
  */
-export function isGitHubImageHost(url: string): boolean {
+export function isGitHubImageHost(url: string, authenticatedHosts: readonly string[] = []): boolean {
   // Parsed, never matched. A regex over the raw string decides on different
   // text than `fetch` does: WHATWG ends the host at a backslash too, so
   // `https://evil.example\.githubusercontent.com/a.png` reads as the
@@ -37,6 +46,6 @@ export function isGitHubImageHost(url: string): boolean {
   if (host.username !== "" || host.password !== "") return false;
   const name = host.hostname.toLowerCase();
   if (name.endsWith(".githubusercontent.com")) return true;
-  return name === "github.com" && host.pathname.startsWith("/user-attachments/");
+  const isKnownHost = name === "github.com" || authenticatedHosts.includes(name);
+  return isKnownHost && host.pathname.startsWith("/user-attachments/");
 }
-

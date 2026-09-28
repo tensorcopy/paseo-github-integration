@@ -155,6 +155,7 @@ export async function loadBoardHandler(
   return {
     login: accounts[0]?.login ?? "",
     viewerLogins: accounts.map((account) => account.login),
+    imageHosts: accounts.map((account) => account.hostname),
     ...(await describeRepositoryProjects(paseo, columns)),
     columns,
     fetchedAt,

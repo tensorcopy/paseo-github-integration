@@ -1,5 +1,7 @@
 import type { PluginSurfaceProps } from "@getpaseo/plugin/client";
+import { useEffect } from "react";
 
+import { rememberImageHosts } from "../detail/remote-image";
 import type { Styles } from "../theme/use-styles";
 import { useBoardFilters } from "./use-board-filters";
 import { useBoardOverlays } from "./use-board-overlays";
@@ -28,6 +30,13 @@ export function useGitHubBoard(props: PluginSurfaceProps, styles: Styles) {
   );
   const filters = useBoardFilters(query.board, settings.display);
   const chatLinks = useChatLinks(props.host.id);
+  // The image-host list rides the board: the daemon names the hosts it will
+  // fetch attachments for, and the detail panel's images ask for exactly
+  // those. Recorded rather than threaded, so a fetched image keeps its host
+  // list across the remounts the surface takes on every workspace switch.
+  useEffect(() => {
+    if (query.board !== null) rememberImageHosts(query.board.imageHosts);
+  }, [query.board]);
   const overlays = useBoardOverlays(props, styles, {
     board: query.board,
     promptValues: settings.promptValues,

@@ -10,6 +10,20 @@ describe("isGitHubImageHost", () => {
     expect(isGitHubImageHost("https://raw.githubusercontent.com/owner/repo/main/img.png")).toBe(true);
   });
 
+  it("accepts an authenticated GitHub Enterprise host under user-attachments", () => {
+    expect(
+      isGitHubImageHost("https://ghe.example.com/user-attachments/assets/abc-123", [
+        "ghe.example.com",
+      ]),
+    ).toBe(true);
+  });
+
+  it("rejects an enterprise host the account is not authenticated on", () => {
+    expect(
+      isGitHubImageHost("https://ghe.example.com/user-attachments/assets/abc-123", []),
+    ).toBe(false);
+  });
+
   it("rejects a github.com path outside user-attachments", () => {
     expect(isGitHubImageHost("https://github.com/owner/repo/settings")).toBe(false);
   });
@@ -23,6 +37,8 @@ describe("isGitHubImageHost", () => {
   });
 
   it("rejects a URL carrying credentials", () => {
-    expect(isGitHubImageHost("https://user:pass@github.com/user-attachments/assets/abc")).toBe(false);
+    expect(isGitHubImageHost("https://user:pass@github.com/user-attachments/assets/abc")).toBe(
+      false,
+    );
   });
 });

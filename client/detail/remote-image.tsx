@@ -8,6 +8,22 @@ import type { Styles } from "../theme/use-styles";
 import { openExternalUrl } from "../web";
 
 /**
+ * Every GitHub host the daemon is authenticated on, as the last board answer
+ * reported. The daemon decides which hosts it fetches images for; the client
+ * only needs the same list to know which URLs to ask it about. Kept at
+ * module scope because a fetched image outlives a remount, and a
+ * not-yet-fetched one should not flip to "unfetchable" on a workspace switch
+ * either.
+ */
+const imageHosts: string[] = [];
+
+/** The board records the hosts its answer was swept from, once per load. */
+export function rememberImageHosts(hosts: readonly string[]): void {
+  imageHosts.length = 0;
+  imageHosts.push(...hosts);
+}
+
+/**
  * One image on its own line of Markdown. A GitHub-hosted one goes through
  * `board.image` — a private repository's attachments answer 404 to the app,
  * which holds no token. Any other host is never fetched at all: loading it
@@ -34,7 +50,7 @@ export function RemoteImage({
   accentColor: string;
 }) {
   const fetchImage = useRpc(loadImage);
-  const isGitHubHosted = isGitHubImageHost(url);
+  const isGitHubHosted = isGitHubImageHost(url, imageHosts);
   /**
    * An image at a URL never changes underneath it, so once fetched and
    * measured it is cached for good (`staleTime: Infinity`) rather than on the
