@@ -83,8 +83,10 @@ export function tokenHostname(hostname: string): string {
  * Follows a redirect chain one hop at a time instead of handing `redirect:
  * "follow"` to `fetch`: the Authorization header a hop carries is always the
  * token of the host that hop belongs to, so one host's credential is never
- * sent to another, and the signed URL a `user-attachments` redirect resolves
- * to is fetched without any header at all.
+ * sent to another. A hop the allowlist refuses — the signed S3 URL a
+ * `user-attachments` redirect resolves to, say — is fetched with no header at
+ * all; a githubusercontent hop carries the github.com token, those CDNs being
+ * github.com's own image hosting.
  */
 async function fetchFollowingRedirects(url: string, hosts: readonly string[]): Promise<Response> {
   let target = url;
