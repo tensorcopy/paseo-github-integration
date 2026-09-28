@@ -1,6 +1,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gh, describeGhFailure, MAX_OUTPUT_BYTES } from "./gh";
+import { ghProcessEnv, githubHostname } from "./host";
 import { assertBudget, prepareGraphqlArgs, recordRateLimit } from "./rate-limit";
 
 const execFileAsync = promisify(execFile);
@@ -55,6 +56,7 @@ export async function ghGraphqlRaw(args: readonly string[]): Promise<GraphqlResu
   try {
     const { stdout } = await execFileAsync("gh", prepareGraphqlArgs(args), {
       maxBuffer: MAX_OUTPUT_BYTES,
+      env: ghProcessEnv(await githubHostname()),
     });
     const result = toGraphqlResult(JSON.parse(stdout));
     recordRateLimit(result.data);

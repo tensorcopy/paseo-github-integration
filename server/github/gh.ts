@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { ghProcessEnv, githubHostname } from "./host";
 import { assertBudget, prepareGraphqlArgs, recordRateLimit } from "./rate-limit";
 
 const execFileAsync = promisify(execFile);
@@ -49,8 +50,10 @@ export async function gh(args: readonly string[]): Promise<string> {
   const graphql = args[0] === "api" && args[1] === "graphql";
   if (graphql) assertBudget();
   try {
+    const hostname = await githubHostname();
     const { stdout } = await execFileAsync("gh", graphql ? prepareGraphqlArgs(args) : [...args], {
       maxBuffer: MAX_OUTPUT_BYTES,
+      env: ghProcessEnv(hostname),
     });
     if (graphql) recordRateLimit(peekRateLimitData(stdout));
     return stdout;
