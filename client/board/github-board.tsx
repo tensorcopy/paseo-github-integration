@@ -51,6 +51,7 @@ export function GitHubBoard(props: PluginSurfaceProps) {
     setBodyWidth,
     detailTarget,
     detailItem,
+    detailChatLink,
     detailProgress,
     closeDetails,
     savedFraction,
@@ -154,6 +155,7 @@ export function GitHubBoard(props: PluginSurfaceProps) {
         setBodyWidth={setBodyWidth}
         detailTarget={detailTarget}
         detailItem={detailItem}
+        detailChatLink={detailChatLink}
         detailProgress={detailProgress}
         closeDetails={closeDetails}
         savedFraction={savedFraction}

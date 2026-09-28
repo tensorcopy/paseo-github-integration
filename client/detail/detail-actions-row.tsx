@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from "react-native";
 
 import type { BoardItem, ColumnId, ItemDetails } from "../../shared/board";
+import type { ChatLink } from "../board/use-chat-links";
 import type { Styles } from "../theme/use-styles";
 import { openExternalUrl } from "../web";
 import { ReviewActions } from "./review-actions";
@@ -15,20 +16,24 @@ import { ReviewActions } from "./review-actions";
 export function DetailActionsRow({
   item,
   type,
+  chatLink,
   details,
   styles,
   acting,
   onApprove,
   onMergeOpen,
+  onOpenChat,
   onSend,
 }: {
   item: BoardItem;
   type: ColumnId;
+  chatLink: ChatLink | null;
   details: ItemDetails | null;
   styles: Styles;
   acting: boolean;
   onApprove: () => void;
   onMergeOpen: () => void;
+  onOpenChat: (chat: ChatLink) => void;
   onSend: (item: BoardItem, type: ColumnId) => void;
 }) {
   return (
@@ -43,6 +48,16 @@ export function DetailActionsRow({
           onMerge={onMergeOpen}
         />
       ) : null}
+      {chatLink === null ? null : (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Open original chat ${chatLink.agentTitle}`}
+          style={({ pressed }) => [styles.button, pressed ? styles.sendButtonPressed : null]}
+          onPress={() => onOpenChat(chatLink)}
+        >
+          <Text style={styles.buttonLabel}>Open original chat</Text>
+        </Pressable>
+      )}
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Send ${item.repository} #${item.number} to a new workspace chat`}

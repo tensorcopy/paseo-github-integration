@@ -5,6 +5,7 @@ import { ActivityIndicator, Animated, ScrollView, Text, View } from "react-nativ
 import type { BoardItem, ColumnId, ItemDetails } from "../../shared/board";
 import { loadItem } from "../../shared/board";
 import type { Styles } from "../theme/use-styles";
+import type { ChatLink } from "../board/use-chat-links";
 import { DetailActionsRow } from "./detail-actions-row";
 import { DetailComments } from "./detail-comments";
 import { DetailDescription, DetailSummary } from "./detail-body";
@@ -29,6 +30,7 @@ import { useItemComments } from "./use-item-comments";
 export function ItemDetailPanel({
   item,
   type,
+  chatLink,
   styles,
   accentColor,
   foregroundColor,
@@ -37,11 +39,13 @@ export function ItemDetailPanel({
   widthFraction,
   onWidthCommitted,
   onClose,
+  onOpenChat,
   onSend,
   onMerged,
 }: {
   item: BoardItem;
   type: ColumnId;
+  chatLink: ChatLink | null;
   styles: Styles;
   accentColor: string;
   foregroundColor: string;
@@ -50,6 +54,7 @@ export function ItemDetailPanel({
   widthFraction: number | null;
   onWidthCommitted: (fraction: number) => void;
   onClose: () => void;
+  onOpenChat: (chat: ChatLink) => void;
   onSend: (item: BoardItem, type: ColumnId) => void;
   onMerged: (itemId: string) => void;
 }) {
@@ -129,11 +134,13 @@ export function ItemDetailPanel({
         <DetailActionsRow
           item={item}
           type={type}
+          chatLink={chatLink}
           details={details}
           styles={styles}
           acting={actions.acting}
           onApprove={actions.runApprove}
           onMergeOpen={() => actions.setMergeOpen(true)}
+          onOpenChat={onOpenChat}
           onSend={onSend}
         />
         <View style={styles.detailDivider} />

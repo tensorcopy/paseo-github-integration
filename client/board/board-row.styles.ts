@@ -68,6 +68,7 @@ export function buildBoardRowStyles(
       gap: 6,
       marginTop: 6,
     },
+    itemRowActions: { flexDirection: "row" as const, alignItems: "center" as const, gap: 4 },
     /** Hidden until the row or the action itself is hovered; see `sendButtonHidden`. */
     itemRowActionHidden: { opacity: 0 },
     label: {

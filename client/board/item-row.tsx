@@ -8,6 +8,7 @@ import { linkedIssueLabel } from "../lib/formatting";
 import { relativeTime } from "../lib/time";
 import type { SortOrder } from "../lib/sort";
 import type { Styles } from "../theme/use-styles";
+import type { ChatLink } from "./use-chat-links";
 import { describeRow } from "./item-row-format";
 import { ItemRowTrailing } from "./item-row-trailing";
 
@@ -59,7 +60,9 @@ export const ItemRow = memo(function ItemRow({
   selected,
   accentColor,
   mutedColor,
+  chatLink,
   onOpen,
+  onOpenChat,
   onSend,
   onLabels,
   type,
@@ -83,8 +86,11 @@ export const ItemRow = memo(function ItemRow({
   accentColor: string;
   /** The state glyph's colour for a draft or a discussion, and the send icon's. */
   mutedColor: string;
+  /** The first Paseo chat associated with this pull request's workspace. */
+  chatLink: ChatLink | null;
   /** A press: opens the row in the detail panel, never the browser. */
   onOpen: (item: BoardItem, type: ColumnId) => void;
+  onOpenChat: (chat: ChatLink) => void;
   onSend: (item: BoardItem, type: ColumnId) => void;
   /** Null where labels cannot be edited, which takes the gesture away entirely. */
   onLabels: ((item: BoardItem, point: { x: number; y: number }) => void) | null;
@@ -119,6 +125,10 @@ export const ItemRow = memo(function ItemRow({
   const send = useCallback(() => {
     onSend(item, type);
   }, [item, onSend, type]);
+
+  const openChat = useCallback(() => {
+    if (chatLink !== null) onOpenChat(chatLink);
+  }, [chatLink, onOpenChat]);
 
   const openLabels = useCallback(
     (event: unknown) => {
@@ -200,20 +210,38 @@ export const ItemRow = memo(function ItemRow({
         {compact ? <View style={styles.itemRowTrailingCompact}>{trailing}</View> : null}
       </View>
       {compact ? null : <View style={styles.itemRowTrailing}>{trailing}</View>}
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Send ${item.repository} #${item.number} to a new workspace chat`}
-        onPress={send}
-        onHoverIn={() => setActionHovered(true)}
-        onHoverOut={() => setActionHovered(false)}
-        style={({ pressed }) => [
-          styles.iconButton,
-          revealed ? null : styles.itemRowActionHidden,
-          pressed ? styles.cardPressed : null,
-        ]}
-      >
-        <Icon name="Send" size={14} color={mutedColor} />
-      </Pressable>
+      <View style={styles.itemRowActions}>
+        {chatLink === null ? null : (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Open original chat ${chatLink.agentTitle}`}
+            onPress={openChat}
+            onHoverIn={() => setActionHovered(true)}
+            onHoverOut={() => setActionHovered(false)}
+            style={({ pressed }) => [
+              styles.iconButton,
+              revealed ? null : styles.itemRowActionHidden,
+              pressed ? styles.cardPressed : null,
+            ]}
+          >
+            <Icon name="MessageSquare" size={14} color={mutedColor} />
+          </Pressable>
+        )}
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`Send ${item.repository} #${item.number} to a new workspace chat`}
+          onPress={send}
+          onHoverIn={() => setActionHovered(true)}
+          onHoverOut={() => setActionHovered(false)}
+          style={({ pressed }) => [
+            styles.iconButton,
+            revealed ? null : styles.itemRowActionHidden,
+            pressed ? styles.cardPressed : null,
+          ]}
+        >
+          <Icon name="Send" size={14} color={mutedColor} />
+        </Pressable>
+      </View>
     </Pressable>
   );
 });

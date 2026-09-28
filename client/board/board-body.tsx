@@ -9,6 +9,7 @@ import { ProjectsView } from "../projects/projects-view";
 import { EMPTY_PROMPTS, PromptSettingsView } from "../settings/prompt-settings-view";
 import type { Styles } from "../theme/use-styles";
 import { openExternalUrl } from "../web";
+import type { ChatLink } from "./use-chat-links";
 
 /**
  * Everything below the header and the toolbar: the settings screen when it is
@@ -37,6 +38,7 @@ export function BoardBody({
   setBodyWidth,
   detailTarget,
   detailItem,
+  detailChatLink,
   detailProgress,
   closeDetails,
   savedFraction,
@@ -63,6 +65,7 @@ export function BoardBody({
   setBodyWidth: (next: number | null) => void;
   detailTarget: { item: BoardItem; type: ColumnId } | null;
   detailItem: BoardItem | null;
+  detailChatLink: ChatLink | null;
   detailProgress: Animated.Value;
   closeDetails: () => void;
   savedFraction: number | null;
@@ -141,6 +144,7 @@ export function BoardBody({
           key={detailItem.id}
           item={detailItem}
           type={detailTarget.type}
+          chatLink={detailChatLink}
           styles={styles}
           accentColor={surfaceProps.theme.colors.accent}
           foregroundColor={surfaceProps.theme.colors.foreground}
@@ -149,6 +153,7 @@ export function BoardBody({
           onWidthCommitted={commitWidth}
           progress={detailProgress}
           onClose={closeDetails}
+          onOpenChat={(chat) => surfaceProps.navigation?.openAgent({ agentId: chat.agentId })}
           onSend={openSendDialog}
           onMerged={dropItem}
         />
