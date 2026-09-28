@@ -11,9 +11,8 @@ import { gh } from "../github/gh";
  * would turn that into a blank Draft PRs *and* Open PRs column; asking for it
  * separately costs pills nobody could have seen anyway.
  *
- * `nodes(ids:)` takes at most 100 ids, which the caller cannot exceed: it asks
- * only for the open pull requests, and the merged list was already cut to
- * `limit`, whose own ceiling is 100.
+ * `nodes(ids:)` takes at most 100 ids, so `attachChecks` asks in batches of
+ * that size rather than assuming the open pull requests fit in one.
  */
 const CHECKS_QUERY = `query($ids: [ID!]!) {
   nodes(ids: $ids) {
@@ -56,6 +55,9 @@ const CHECKS_QUERY = `query($ids: [ID!]!) {
  * Paseo's own checks summary drops it.
  */
 type CheckOutcome = "passed" | "failed" | "pending" | "ignored";
+
+/** GitHub's own ceiling on `nodes(ids:)`. */
+const CHECKS_BATCH = 100;
 
 /**
  * Mirrors Paseo's `mapCheckRunStatus` so the board and the sidebar cannot
@@ -211,16 +213,20 @@ async function fetchChecks(ids: readonly string[]): Promise<Map<string, CheckSum
 export async function attachChecks(items: readonly BoardItem[]): Promise<BoardItem[]> {
   const ids = items.map((item) => item.id).filter((id) => id !== "");
   if (ids.length === 0) return [...items];
-  let summaries: Map<string, CheckSummary>;
-  try {
-    summaries = await fetchChecks(ids);
-  } catch (error) {
-    console.warn(
-      `[github-board] pull request checks unavailable: ${
-        error instanceof Error ? error.message : String(error)
-      }`,
-    );
-    return [...items];
+
+  const summaries = new Map<string, CheckSummary>();
+  for (let start = 0; start < ids.length; start += CHECKS_BATCH) {
+    const batch = ids.slice(start, start + CHECKS_BATCH);
+    try {
+      for (const [id, summary] of await fetchChecks(batch)) summaries.set(id, summary);
+    } catch (error) {
+      // One batch failing costs its own pills, not every other batch's.
+      console.warn(
+        `[github-board] pull request checks unavailable: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
   }
   return items.map((item) => ({ ...item, checks: summaries.get(item.id) ?? null }));
 }
