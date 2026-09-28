@@ -21,7 +21,11 @@ import { chatLinkFor, useChatLinks } from "./use-chat-links";
  */
 export function useGitHubBoard(props: PluginSurfaceProps, styles: Styles) {
   const settings = useBoardSettings();
-  const query = useBoardQuery(props, settings.watchedOwners);
+  const query = useBoardQuery(
+    props,
+    settings.watchedOwners,
+    settings.display.status !== "loading",
+  );
   const filters = useBoardFilters(query.board, settings.display);
   const chatLinks = useChatLinks(props.host.id);
   const overlays = useBoardOverlays(props, styles, {
@@ -65,7 +69,7 @@ export function useGitHubBoard(props: PluginSurfaceProps, styles: Styles) {
     applyPrompts: settings.applyPrompts,
     applyLogin: query.applyLogin,
     watchedOwners: settings.watchedOwners,
-    displayRows: filters.displayRows,
+    listRows: filters.listRows,
     renderRow: overlays.renderRow,
     modeRows: filters.modeRows,
     bodyWidth: overlays.bodyWidth,

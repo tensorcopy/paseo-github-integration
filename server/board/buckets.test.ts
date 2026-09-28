@@ -15,6 +15,7 @@ function makeItem(id: string, updatedAt: string): BoardItem {
     title: `item ${id}`,
     url: `https://github.com/owner/repo/issues/${id}`,
     repository: "owner/repo",
+    host: "github.com",
     updatedAt,
     createdAt: updatedAt,
     lastCommitAt: null,

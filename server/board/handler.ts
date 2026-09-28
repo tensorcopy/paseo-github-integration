@@ -127,7 +127,10 @@ export async function loadBoardHandler(
   }
   const key = `${accounts.map(({ hostname, login: accountLogin }) => `${hostname}:${accountLogin}`).join(",")}\u0000${limit}\u0000${[...owners].sort().join(",")}`;
 
-  const { columns, fetchedAt } = await boardCache.get(
+  const {
+    value: { columns, fetchedAt },
+    stale,
+  } = await boardCache.read(
     key,
     BOARD_TTL_MS,
     async () => {
@@ -139,6 +142,10 @@ export async function loadBoardHandler(
     },
     {
       force,
+      // An expired board is shown immediately and refreshed behind the
+      // surface: a sweep costs several seconds of `gh` round trips, and the
+      // board it would replace is minutes old, not wrong.
+      revalidate: true,
       // A column that failed is not worth remembering: caching it would keep the
       // error on screen for the whole window even though a retry might succeed.
       shouldCache: (cached) => cached.columns.every((column) => column.error === null),
@@ -151,5 +158,6 @@ export async function loadBoardHandler(
     ...(await describeRepositoryProjects(paseo, columns)),
     columns,
     fetchedAt,
+    stale,
   };
 }

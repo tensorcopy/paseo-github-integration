@@ -26,12 +26,14 @@ export function toItem(
   const ownerSeparator = repository.indexOf("/");
   const url = typeof node.url === "string" ? node.url : "";
   const nodeId = typeof node.id === "string" ? node.id : url;
+  const host = hostnameFromUrl(url);
   return {
-    id: encodeItemId(hostnameFromUrl(url), nodeId),
+    id: encodeItemId(host, nodeId),
     number: typeof node.number === "number" ? node.number : 0,
     title: typeof node.title === "string" ? node.title : "",
     url,
     repository,
+    host,
     updatedAt: typeof node.updatedAt === "string" ? node.updatedAt : "",
     createdAt: typeof node.createdAt === "string" ? node.createdAt : "",
     // Null on anything that is not a pull request, or a pull request GitHub

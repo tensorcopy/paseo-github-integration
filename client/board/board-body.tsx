@@ -9,6 +9,7 @@ import { ProjectsView } from "../projects/projects-view";
 import { EMPTY_PROMPTS, PromptSettingsView } from "../settings/prompt-settings-view";
 import type { Styles } from "../theme/use-styles";
 import { openExternalUrl } from "../web";
+import type { ListRow } from "./host-sections";
 import type { ChatLink } from "./use-chat-links";
 
 /**
@@ -30,7 +31,7 @@ export function BoardBody({
   board,
   mode,
   watchedOwners,
-  displayRows,
+  listRows,
   renderRow,
   modeRows,
   refresh,
@@ -57,7 +58,7 @@ export function BoardBody({
   board: Board | null;
   mode: BoardMode;
   watchedOwners: readonly string[];
-  displayRows: readonly BoardRow[];
+  listRows: readonly ListRow[];
   renderRow: (info: { item: BoardRow }) => React.JSX.Element;
   modeRows: { rows: BoardRow[]; error: string | null };
   refresh: (login?: string, force?: boolean) => Promise<void>;
@@ -103,9 +104,18 @@ export function BoardBody({
       ) : (
         <FlatList
           style={styles.rowList}
-          data={displayRows}
-          keyExtractor={(row) => row.item.id}
-          renderItem={renderRow}
+          data={listRows}
+          keyExtractor={(row) => row.key}
+          renderItem={({ item: row }) =>
+            row.kind === "host" ? (
+              <View style={styles.hostHeader}>
+                <Text style={styles.hostHeaderName}>{row.host}</Text>
+                <Text style={styles.hostHeaderCount}>{row.count}</Text>
+              </View>
+            ) : (
+              renderRow({ item: row.row })
+            )
+          }
           ListEmptyComponent={
             modeRows.error !== null ? (
               <Text style={[styles.danger, styles.empty]}>{modeRows.error}</Text>

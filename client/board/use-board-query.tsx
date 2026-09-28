@@ -4,7 +4,7 @@ import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-quer
 
 import type { Board } from "../../shared/board";
 import { loadBoard, saveLogin } from "../../shared/board";
-import { STALE_AFTER_MS } from "./constants";
+import { STALE_AFTER_MS, STALE_POLL_MS } from "./constants";
 
 /**
  * The board's query key: the login it was fetched for (`null` meaning "let
@@ -42,6 +42,7 @@ export interface UseBoardQueryResult {
 export function useBoardQuery(
   props: PluginSurfaceProps,
   watchedOwners: readonly string[],
+  ownersReady: boolean,
 ): UseBoardQueryResult {
   const load = useRpc(loadBoard);
   const persistLogin = useRpc(saveLogin);
@@ -76,6 +77,19 @@ export function useBoardQuery(
     // keeps the previous key's board on screen while the new one loads,
     // which is what the hand-written cache did by never changing identity.
     placeholderData: keepPreviousData,
+    /**
+     * The watched owners are part of the key, so fetching before the settings
+     * read lands would sweep GitHub for the empty owner list and then sweep
+     * again for the real one — several seconds of `gh` calls spent on a board
+     * nobody sees.
+     */
+    enabled: ownersReady,
+    /**
+     * A stale board is one the daemon is refreshing right now, so the fresh
+     * one is a short wait away rather than a sweep away; asking again picks it
+     * up. Polling stops the moment a board comes back fresh.
+     */
+    refetchInterval: (query) => (query.state.data?.stale === true ? STALE_POLL_MS : false),
   });
   const board = boardQuery.data ?? null;
   /**
@@ -98,7 +112,7 @@ export function useBoardQuery(
    * new login's board outside that query's own key (see `refresh`).
    */
   const [switchingLogin, setSwitchingLogin] = useState(false);
-  const busy = boardQuery.isFetching || switchingLogin;
+  const busy = boardQuery.isFetching || switchingLogin || !ownersReady;
   const [loginDraft, setLoginDraft] = useState(() => board?.login ?? "");
   useEffect(() => {
     if (board !== null) setLoginDraft(board.login);

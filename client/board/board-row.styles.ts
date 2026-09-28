@@ -16,6 +16,33 @@ export function buildBoardRowStyles(
     rowList: { flex: 1 },
     rowListContent: { paddingBottom: layout.compact ? 32 : 8 },
     /**
+     * The heading above each host's run of cards, shown only when the board
+     * aggregates more than one GitHub host. Deliberately quieter than a card:
+     * it separates the list, it is not an entry in it.
+     */
+    hostHeader: {
+      flexDirection: "row" as const,
+      alignItems: "center" as const,
+      justifyContent: "space-between" as const,
+      gap: 8,
+      paddingHorizontal: layout.compact ? 12 : 16,
+      paddingTop: layout.compact ? 14 : 12,
+      paddingBottom: 6,
+      backgroundColor: colors.surface1,
+      borderBottomWidth: 1,
+      borderBottomColor: separator,
+    },
+    hostHeaderName: {
+      color: colors.foregroundMuted,
+      fontSize: layout.compact ? 12 : 11,
+      fontWeight: "700" as const,
+      letterSpacing: 0.4,
+    },
+    hostHeaderCount: {
+      color: colors.foregroundMuted,
+      fontSize: layout.compact ? 12 : 11,
+    },
+    /**
      * One line of the GitHub-style list: an icon, the title and its meta, and
      * — on the wide layout only — the trailing checks/comments/labels. A
      * border under the row stands in for the card frame the grid used to draw.

@@ -158,7 +158,7 @@ export const ItemRow = memo(function ItemRow({
   const closes = item.linkedIssues
     .map((issue) => linkedIssueLabel(issue, item.repository))
     .join(", ");
-  const hostname = new URL(item.url).hostname;
+  const hostname = item.host;
 
   const display = describeRow({
     item,

@@ -79,6 +79,36 @@ describe("Cache.get", () => {
   });
 });
 
+describe("Cache.read with revalidate", () => {
+  it("answers from the expired entry and marks it stale while reloading behind the caller", async () => {
+    const cache = new Cache<number>("revalidate");
+    const load = vi.fn().mockResolvedValueOnce(1).mockResolvedValueOnce(2);
+    expect(await cache.read("k", 10_000, load)).toEqual({ value: 1, stale: false });
+
+    vi.setSystemTime(1_000_000 + 10_001);
+    expect(await cache.read("k", 10_000, load, { revalidate: true })).toEqual({
+      value: 1,
+      stale: true,
+    });
+
+    // The background sweep started; once it lands the same call answers fresh.
+    await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+    expect(await cache.read("k", 10_000, load, { revalidate: true })).toEqual({
+      value: 2,
+      stale: false,
+    });
+  });
+
+  it("still waits for the first sweep when nothing is cached yet", async () => {
+    const cache = new Cache<number>("revalidate-cold");
+    const load = vi.fn().mockResolvedValue(5);
+    expect(await cache.read("k", 10_000, load, { revalidate: true })).toEqual({
+      value: 5,
+      stale: false,
+    });
+  });
+});
+
 describe("Cache file permissions", () => {
   it("creates the cache file at 0600 and its directory at 0700", async () => {
     const cache = new Cache<string>("perm-fresh");

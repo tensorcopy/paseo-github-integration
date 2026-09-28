@@ -64,6 +64,12 @@ export const BoardItemSchema = z.object({
   url: z.string(),
   /** `owner/name`, the only repository form the board displays. */
   repository: z.string(),
+  /**
+   * The gh host this item came from, e.g. `github.com` or `ghe.example.com`.
+   * Carried rather than parsed off `url` by each consumer, because the board
+   * groups by it and every row would otherwise rebuild the same URL.
+   */
+  host: z.string(),
   updatedAt: z.string(),
   /** When it was opened, for the "Recently created" ordering. */
   createdAt: z.string(),
@@ -181,6 +187,13 @@ export const BoardSchema = z.object({
    */
   repositoryProjects: z.record(z.string(), z.string()),
   fetchedAt: z.string(),
+  /**
+   * True when these columns are a remembered answer the daemon is already
+   * refreshing behind this response. The board paints them right away and
+   * asks again shortly after, rather than holding an empty surface for the
+   * length of a GitHub sweep.
+   */
+  stale: z.boolean(),
 });
 
 export type ProjectRef = z.output<typeof ProjectRefSchema>;

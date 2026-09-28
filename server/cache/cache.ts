@@ -8,6 +8,19 @@ interface CacheEntry<T> {
   storedAt: number;
 }
 
+/** Per-call knobs for `get`/`read`; see the doc comments on each. */
+interface CacheOptions<T> {
+  force?: boolean;
+  shouldCache?: (value: T) => boolean;
+  /**
+   * Answer from an expired entry and refresh it in the background instead of
+   * making the caller wait for the sweep. Only worth it where a stale answer
+   * is better than a spinner and the caller can repaint when the fresh one
+   * lands — the board surface does both.
+   */
+  revalidate?: boolean;
+}
+
 /**
  * The one cache this plugin uses everywhere an answer is worth remembering: a
  * TTL supplied by the caller rather than baked into the cache, single-flight
@@ -111,13 +124,43 @@ export class Cache<T> {
     key: string,
     ttl: number,
     load: () => Promise<T>,
-    options?: { force?: boolean; shouldCache?: (value: T) => boolean },
+    options?: CacheOptions<T>,
   ): Promise<T> {
+    const { value } = await this.read(key, ttl, load, options);
+    return value;
+  }
+
+  /**
+   * `get` plus whether the value handed back is an expired one being refreshed
+   * behind the caller — only ever true with `revalidate`. A caller that can
+   * repaint later (the board surface) uses this to say so and come back for
+   * the fresh answer; one that cannot simply calls `get`.
+   */
+  async read(
+    key: string,
+    ttl: number,
+    load: () => Promise<T>,
+    options?: CacheOptions<T>,
+  ): Promise<{ value: T; stale: boolean }> {
     await this.hydrate();
     if (options?.force !== true) {
       const cached = this.memory.get(key);
-      if (cached !== undefined && Date.now() - cached.storedAt < ttl) return cached.value;
+      if (cached !== undefined) {
+        if (Date.now() - cached.storedAt < ttl) return { value: cached.value, stale: false };
+        if (options?.revalidate === true) {
+          // Deliberately not awaited: the point is to answer from the expired
+          // entry now. A failure is the next request's problem — nothing was
+          // cached, so it simply sweeps again.
+          void this.load(key, load, options).catch(() => undefined);
+          return { value: cached.value, stale: true };
+        }
+      }
     }
+    return { value: await this.load(key, load, options), stale: false };
+  }
+
+  /** The single-flight sweep behind `read`: one `load` per key, however many callers are waiting. */
+  private load(key: string, load: () => Promise<T>, options?: CacheOptions<T>): Promise<T> {
     const running = this.inFlight.get(key);
     if (running !== undefined) return running;
 

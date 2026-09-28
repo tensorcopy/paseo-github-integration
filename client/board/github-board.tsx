@@ -44,7 +44,7 @@ export function GitHubBoard(props: PluginSurfaceProps) {
     applyPrompts,
     applyLogin,
     watchedOwners,
-    displayRows,
+    listRows,
     renderRow,
     modeRows,
     bodyWidth,
@@ -147,7 +147,7 @@ export function GitHubBoard(props: PluginSurfaceProps) {
         board={board}
         mode={mode}
         watchedOwners={watchedOwners}
-        displayRows={displayRows}
+        listRows={listRows}
         renderRow={renderRow}
         modeRows={modeRows}
         refresh={refresh}

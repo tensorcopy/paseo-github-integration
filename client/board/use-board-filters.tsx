@@ -12,6 +12,7 @@ import {
   type BoardRow,
   type SortOrder,
 } from "../lib/sort";
+import { withHostHeaders, type ListRow } from "./host-sections";
 import type { UseBoardSettingsResult } from "./use-board-settings";
 
 /** Which of the three dropdowns is open; never more than one at once, so one backdrop closes any of them. */
@@ -43,6 +44,8 @@ export interface UseBoardFiltersResult {
   searchQuery: string;
   setSearchQuery: (next: string) => void;
   displayRows: BoardRow[];
+  /** `displayRows` with a heading before each host's run of cards; see `withHostHeaders`. */
+  listRows: ListRow[];
   modeRows: { rows: BoardRow[]; error: string | null };
   openFilter: OpenBoardFilter;
   setOpenFilter: Dispatch<SetStateAction<OpenBoardFilter>>;
@@ -301,6 +304,7 @@ export function useBoardFilters(
     // rather than the shared one in place.
     return [...searchedRows].sort((a, b) => compareBySortDate(activeOrder, a, b));
   }, [searchedRows, activeOrder]);
+  const listRows = useMemo(() => withHostHeaders(displayRows), [displayRows]);
 
   const selectColumnMode = useCallback((id: BoardMode) => setMode(id), []);
 
@@ -397,6 +401,7 @@ export function useBoardFilters(
     searchQuery,
     setSearchQuery,
     displayRows,
+    listRows,
     modeRows,
     openFilter,
     setOpenFilter,

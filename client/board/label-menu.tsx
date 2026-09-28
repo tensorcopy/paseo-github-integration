@@ -56,7 +56,7 @@ export function LabelMenu({
   onChanged: (itemId: string, labels: string[]) => void;
 }) {
   const { item } = target;
-  const host = new URL(item.url).hostname;
+  const host = item.host;
   const list = useRpc(listLabels);
   const apply = useRpc(toggleLabel);
 

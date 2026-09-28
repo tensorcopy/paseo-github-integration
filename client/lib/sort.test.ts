@@ -9,6 +9,7 @@ function makeItem(overrides: Partial<BoardItem>): BoardItem {
     title: "An item",
     url: "https://github.com/owner/repo/pull/1",
     repository: "owner/repo",
+    host: "github.com",
     updatedAt: "2024-01-01T00:00:00Z",
     createdAt: "2024-01-01T00:00:00Z",
     lastCommitAt: null,
