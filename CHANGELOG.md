@@ -9,6 +9,29 @@ pin and a line to read before you move.
 
 ## [Unreleased]
 
+### Added
+
+- **Every authenticated GitHub host is now swept together.** The hosts `gh auth status` reports are
+  all queried at once, each with its own account, so one board can show github.com and GitHub
+  Enterprise work side by side. Reads and actions stay routed to the host that owns the item, and
+  with more than one host on the board the list is divided into one section per host rather than
+  interleaving them. An Enterprise repository's screenshots come through the daemon too, fetched
+  with that host's own token; hosts neither GitHub nor your logins know are still never fetched.
+- **Open the original chat from a pull request.** A pull request that a Paseo workspace tracks is
+  linked to the first agent created in that workspace — the originating conversation — and a new
+  action on the row and in the panel jumps straight to that chat.
+- **The board is painted before GitHub answers.** A board the daemon already has is shown at once
+  and refreshed behind it, and the header says how old the board on screen is.
+
+### Fixed
+
+- **The search limit is now spent per relation, not as one shared budget.** A full review queue
+  used to take the whole list and push the viewer's own work off the board. Pull request checks
+  are also asked for in batches of 100 ids, an expired login on one host no longer blanks the
+  board for the hosts that are fine, and the board no longer runs minutes behind GitHub: the
+  daemon re-sweeps once its board is more than a minute old, and a sweep in which a column failed
+  is not remembered.
+
 ## [1.0.1] — 2026-09-12
 
 ### Changed

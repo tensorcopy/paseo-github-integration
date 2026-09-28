@@ -4,6 +4,21 @@ GitHub inside [Paseo](https://paseo.sh): the issues and pull requests you are at
 waiting on your review, your Projects boards, and the review actions that finish a pull request —
 without leaving the app, and with one click to hand any of them to a coding agent.
 
+The board also links a pull request back to its original Paseo chat. It matches the PR tracked
+by each active or retained workspace to the first agent created there, then adds an **Open original
+chat** action to the PR row and detail panel.
+
+Every authenticated host reported by `gh auth status --json hosts` is queried together. One board
+can therefore show github.com and GitHub Enterprise work at the same time, using each host's active
+account and keeping reads and actions routed to the host that owns the item. With more than one host
+on the board, the list is divided into a section per host rather than interleaving them.
+
+Opening the surface does not wait on GitHub: a board the daemon already has is painted immediately
+and refreshed behind it, and the refreshed one replaces it as soon as the sweep lands. Every open,
+and every return to the app, asks the daemon; the daemon sweeps GitHub again when its own board is
+more than a minute old, so a pull request merged elsewhere leaves the list within seconds of the
+board being opened. The header says how old the board on screen is.
+
 ![The GitHub surface: the Pull requests / Issues / Discussions / Projects switcher, the relation
 chips with their counts, the owner and repository pickers, the search box, and the list of pull
 requests.](images/board.png)
@@ -33,6 +48,9 @@ rendered from Markdown, with images proxied through the daemon. From there: appr
 method the repository allows, edit labels, open on GitHub — or **send to chat**, which starts a
 Paseo agent with a prompt template of your choosing, in a workspace of your choosing, with the
 issue or pull request pinned to the top of the conversation.
+
+For pull requests associated with a Paseo workspace, **Open original chat** jumps directly to the
+first agent in that workspace.
 
 ![One pull request open in the detail panel: title, author, branches, checks, the Approve, Merge,
 Send to chat and Open on GitHub actions, and the rendered body.](images/detail-panel.png)
@@ -86,9 +104,11 @@ inputs.paseo-github.url = "github:alysnnix/paseo-github-integration";
 - **GitHub search backs the sweep**, so its rules apply: results are capped per query, and a
   watched owner with thousands of open items shows the most recently updated slice rather than all
   of them.
-- **One GitHub account at a time**, the one `gh` is authenticated as. There is no account switcher.
-- **Images hosted outside GitHub are not loaded**, deliberately: they would report your IP address
-  to whoever wrote the comment. They render as a link you can open yourself.
+- **One account per host**, the one `gh` is authenticated as there. Every authenticated host is
+  swept together, but there is no account switcher within a host.
+- **Images from hosts neither GitHub nor your `gh` logins know are not loaded**, deliberately:
+  they would report your IP address to whoever wrote the comment. They render as a link you can
+  open yourself.
 
 ## Trust
 
