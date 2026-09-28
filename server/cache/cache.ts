@@ -170,6 +170,13 @@ export class Cache<T> {
         if (options?.shouldCache?.(value) !== false) {
           this.memory.set(key, { value, storedAt: Date.now() });
           await this.persist();
+        } else if (this.memory.delete(key)) {
+          // An answer that may not be remembered must not leave an older one
+          // behind either: with `revalidate` that entry would be served as
+          // stale on every request from here on, refreshed by a sweep whose
+          // result is always discarded. Dropping it makes the next request
+          // wait for a real answer instead of showing an ageing one forever.
+          await this.persist();
         }
         return value;
       } finally {

@@ -2,11 +2,15 @@ import type { BoardColumn } from "../../shared/board";
 import { Cache } from "../cache/cache";
 
 /**
- * A board costs three `gh` subprocesses and a round trip to GitHub, so one is
- * reused for a short window — the surface remounts on every workspace switch
- * and should not pay that each time. The Refresh button sends `force`.
+ * How old a cached board may be before the next request sweeps GitHub again.
+ * Nobody waits for that sweep — an expired board is served immediately and
+ * refreshed behind the surface — so this is only about how far behind GitHub
+ * the board is allowed to run, not about how fast it opens. A minute keeps a
+ * pull request merged elsewhere from lingering while still collapsing the
+ * burst of requests a workspace switch or a window focus produces. The
+ * Refresh button sends `force` and skips it entirely.
  */
-export const BOARD_TTL_MS = 5 * 60_000;
+export const BOARD_TTL_MS = 60_000;
 
 export interface CachedBoard {
   columns: BoardColumn[];

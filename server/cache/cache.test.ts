@@ -99,6 +99,22 @@ describe("Cache.read with revalidate", () => {
     });
   });
 
+  it("drops the expired entry when the refreshed answer may not be cached", async () => {
+    const cache = new Cache<number>("revalidate-uncacheable");
+    const load = vi.fn().mockResolvedValueOnce(1).mockResolvedValue(2);
+    await cache.read("k", 10_000, load);
+
+    // The sweep runs but its answer is declined, so the entry behind it goes
+    // too: serving it again would pin the caller to an answer that only ages.
+    vi.setSystemTime(1_000_000 + 10_001);
+    const decline = { revalidate: true, shouldCache: () => false };
+    expect(await cache.read("k", 10_000, load, decline)).toEqual({ value: 1, stale: true });
+    await vi.waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+
+    // Never the remembered 1 again: the caller waits for a real answer.
+    expect(await cache.read("k", 10_000, load, decline)).toEqual({ value: 2, stale: false });
+  });
+
   it("still waits for the first sweep when nothing is cached yet", async () => {
     const cache = new Cache<number>("revalidate-cold");
     const load = vi.fn().mockResolvedValue(5);

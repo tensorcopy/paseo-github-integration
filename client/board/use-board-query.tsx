@@ -73,6 +73,16 @@ export function useBoardQuery(
         : load({ login: queryLogin, owners: [...watchedOwners], force });
     },
     staleTime: STALE_AFTER_MS,
+    /**
+     * Opening the surface, and coming back to the app, always ask the daemon —
+     * `staleTime` above only dedupes re-renders within one view. A board is
+     * wrong the moment a pull request is merged anywhere else, and the
+     * question is cheap: the daemon answers from its own cache immediately and
+     * decides for itself whether that cache is old enough to sweep GitHub
+     * again, so this costs a round trip to the daemon, not to GitHub.
+     */
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
     // A key change (the owner sweep widens or narrows, or the login switches)
     // keeps the previous key's board on screen while the new one loads,
     // which is what the hand-written cache did by never changing identity.
