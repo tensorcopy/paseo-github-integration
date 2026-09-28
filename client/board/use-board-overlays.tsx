@@ -260,7 +260,7 @@ export function useBoardOverlays(
     ({ item: row }: { item: BoardRow }) => (
       <ItemRow
         item={row.item}
-        viewerLogin={board?.login ?? ""}
+        viewerLogins={board?.viewerLogins ?? []}
         styles={styles}
         platform={props.layout.platform}
         compact={props.layout.compact}
@@ -277,7 +277,7 @@ export function useBoardOverlays(
       />
     ),
     [
-      board?.login,
+      board?.viewerLogins,
       styles,
       props.layout.platform,
       props.layout.compact,

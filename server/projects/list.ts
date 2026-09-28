@@ -1,10 +1,13 @@
 import type { z } from "zod";
 import type { ProjectSummary, listProjects } from "../../shared/board";
 import { aliasName, ghGraphqlRaw, nodesOf } from "../github/graphql";
-import { resolveViewerLogin } from "../github/gh";
+import {
+  type GithubAccount,
+  listGithubAccounts,
+  withGithubHostname,
+} from "../github/host";
 import { Cache } from "../cache/cache";
-import { readSettings } from "../settings/settings";
-import { needsProjectScope, PROJECT_SCOPE_MESSAGE } from "./scope";
+import { needsProjectScope, projectScopeMessage } from "./scope";
 
 /** One project summary node, as `PROJECT_SUMMARY_FIELDS` shapes it. */
 interface GhProjectSummaryNode {
@@ -21,10 +24,11 @@ interface GhProjectSummaryNode {
 
 const PROJECT_SUMMARY_FIELDS = `id number title url shortDescription closed updatedAt items { totalCount } owner { ... on User { login } ... on Organization { login } }`;
 
-function toProjectSummary(node: GhProjectSummaryNode): ProjectSummary | null {
+function toProjectSummary(host: string, node: GhProjectSummaryNode): ProjectSummary | null {
   if (typeof node.id !== "string" || typeof node.url !== "string") return null;
   return {
-    id: node.id,
+    id: `${host}\u0000${node.id}`,
+    host,
     number: typeof node.number === "number" ? node.number : 0,
     title: typeof node.title === "string" ? node.title : "",
     url: node.url,
@@ -47,24 +51,11 @@ type ListProjectsResult = z.input<typeof listProjects.output>;
 
 const projectsCache = new Cache<ListProjectsResult>("projects");
 
-export async function listProjectsHandler({
-  login,
-  owners,
-  force,
-}: z.output<typeof listProjects.input>): Promise<ListProjectsResult> {
-  const requested = login?.trim();
-  const settings = await readSettings();
-  const resolved =
-    requested !== undefined && requested !== "" && requested !== "@me"
-      ? requested
-      : (settings.login ?? (await resolveViewerLogin()));
-
-  const key = `${resolved}\u0000${[...owners].sort().join(",")}`;
-
-  return projectsCache.get(
-    key,
-    PROJECTS_TTL_MS,
-    async () => {
+async function fetchAccountProjects(
+  account: GithubAccount,
+  owners: readonly string[],
+): Promise<ListProjectsResult> {
+  return withGithubHostname(account.hostname, async () => {
       const orderBy = "orderBy: { field: UPDATED_AT, direction: DESC }";
       const ownerAliases = owners
         .map(
@@ -80,14 +71,14 @@ export async function listProjectsHandler({
   ${ownerAliases}
 }`;
 
-      const args = ["api", "graphql", "-f", `query=${query}`, "-f", `self=${resolved}`];
+      const args = ["api", "graphql", "-f", `query=${query}`, "-f", `self=${account.login}`];
       owners.forEach((owner, index) => args.push("-f", `${aliasName(index)}=${owner}`));
 
       const { data, errors } = await ghGraphqlRaw(args);
 
       if (data === null) {
         return needsProjectScope(errors)
-          ? { projects: [], error: PROJECT_SCOPE_MESSAGE, needsScope: true }
+          ? { projects: [], error: projectScopeMessage(account.hostname), needsScope: true }
           : {
               projects: [],
               error: errors.map((error) => error.message).join(" ") || "GitHub returned no data.",
@@ -105,16 +96,54 @@ export async function listProjectsHandler({
         const ownerNode = data[alias] as GhOwnerProjectsNode | null;
         for (const raw of nodesOf(ownerNode?.projectsV2)) {
           if (typeof raw !== "object" || raw === null) continue;
-          const summary = toProjectSummary(raw as GhProjectSummaryNode);
+          const summary = toProjectSummary(account.hostname, raw as GhProjectSummaryNode);
           if (summary !== null) byId.set(summary.id, summary);
         }
       };
 
-      collect("self", resolved);
+      collect("self", account.login);
       owners.forEach((owner, index) => collect(aliasName(index), owner));
 
       const projects = [...byId.values()].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
       return { projects, error: null, needsScope: false };
+  });
+}
+
+export async function listProjectsHandler({
+  login,
+  owners,
+  force,
+}: z.output<typeof listProjects.input>): Promise<ListProjectsResult> {
+  const requested = login?.trim();
+  const available = await listGithubAccounts();
+  const accounts =
+    requested === undefined || requested === "" || requested === "@me"
+      ? available
+      : available.filter((account) => account.login.toLowerCase() === requested.toLowerCase());
+  if (accounts.length === 0) {
+    throw new Error(`gh has no authenticated account with login "${requested}".`);
+  }
+  const key = `${accounts.map(({ hostname, login: accountLogin }) => `${hostname}:${accountLogin}`).join(",")}\u0000${[...owners].sort().join(",")}`;
+
+  return projectsCache.get(
+    key,
+    PROJECTS_TTL_MS,
+    async () => {
+      const results = await Promise.all(
+        accounts.map((account) => fetchAccountProjects(account, owners)),
+      );
+      const projects = results
+        .flatMap((result) => result.projects)
+        .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+      const errors = results
+        .map((result) => result.error)
+        .filter((error): error is string => error !== null);
+      const empty = projects.length === 0;
+      return {
+        projects,
+        error: empty && errors.length > 0 ? errors.join(" ") : null,
+        needsScope: empty && results.some((result) => result.needsScope),
+      };
     },
     {
       force,

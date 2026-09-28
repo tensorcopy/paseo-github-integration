@@ -38,7 +38,7 @@ export interface RowDisplay {
  */
 export function describeRow({
   item,
-  viewerLogin,
+  viewerLogins,
   order,
   type,
   accentColor,
@@ -48,7 +48,7 @@ export function describeRow({
   isWeb,
 }: {
   item: BoardItem;
-  viewerLogin: string;
+  viewerLogins: readonly string[];
   order: SortOrder;
   type: ColumnId;
   accentColor: string;
@@ -73,7 +73,8 @@ export function describeRow({
           : "CircleDot";
   const iconColor = type === "draft-prs" || type === "discussions" ? mutedColor : accentColor;
 
-  const byline = item.author !== null && item.author !== viewerLogin ? item.author : null;
+  const byline =
+    item.author !== null && !viewerLogins.includes(item.author) ? item.author : null;
 
   const openedBy = byline === null ? "" : `, opened by ${byline}`;
   const linkedTo = closes === "" ? "" : `, closes ${closes}`;

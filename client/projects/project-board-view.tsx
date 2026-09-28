@@ -45,6 +45,7 @@ function itemGlyph(item: ProjectItem, colors: ThemeColors): { name: string; colo
 export function ProjectBoardView({
   theme,
   styles,
+  host,
   owner,
   number,
   onOpenUrl,
@@ -52,6 +53,7 @@ export function ProjectBoardView({
 }: {
   theme: PluginSurfaceProps["theme"];
   styles: ProjectsStyles;
+  host: string;
   owner: string;
   number: number;
   onOpenUrl: (url: string) => void;
@@ -68,7 +70,7 @@ export function ProjectBoardView({
     setDetail(null);
     setDetailError(null);
     setDetailLoading(true);
-    fetchProject({ owner, number, force: false })
+    fetchProject({ host, owner, number, force: false })
       .then((result) => {
         if (live) setDetail({ title: result.title, url: result.url, columns: result.columns });
       })
@@ -81,7 +83,7 @@ export function ProjectBoardView({
     return () => {
       live = false;
     };
-  }, [fetchProject, owner, number]);
+  }, [fetchProject, host, owner, number]);
 
   /**
    * An empty column is not the interesting case, but a project with nothing

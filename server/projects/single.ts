@@ -1,9 +1,10 @@
 import type { z } from "zod";
 import type { ProjectItem, loadProject } from "../../shared/board";
 import { ghGraphqlRaw, nodesOf } from "../github/graphql";
+import { withGithubHostname } from "../github/host";
 import { Cache } from "../cache/cache";
 import { labelNodeNames } from "../board/item";
-import { needsProjectScope, PROJECT_SCOPE_MESSAGE } from "./scope";
+import { needsProjectScope, projectScopeMessage } from "./scope";
 
 /** The Status field's own single-select name, read by `fieldValueByName` and `field`. */
 const STATUS_FIELD_NAME = "Status";
@@ -185,46 +186,50 @@ type LoadProjectResult = z.input<typeof loadProject.output>;
 const projectCache = new Cache<LoadProjectResult>("project");
 
 export async function loadProjectHandler({
+  host,
   owner,
   number,
   force,
 }: z.output<typeof loadProject.input>): Promise<LoadProjectResult> {
-  const key = `${owner}\u0000${number}`;
+  const key = `${host}\u0000${owner}\u0000${number}`;
   return projectCache.get(
     key,
     PROJECT_TTL_MS,
-    async () => {
-      const { data, errors } = await ghGraphqlRaw([
-        "api",
-        "graphql",
-        "-f",
-        `query=${PROJECT_QUERY}`,
-        "-f",
-        `owner=${owner}`,
-        "-F",
-        `number=${number}`,
-      ]);
+    () =>
+      withGithubHostname(host, async () => {
+        const { data, errors } = await ghGraphqlRaw([
+          "api",
+          "graphql",
+          "-f",
+          `query=${PROJECT_QUERY}`,
+          "-f",
+          `owner=${owner}`,
+          "-F",
+          `number=${number}`,
+        ]);
 
-      if (data === null) {
-        if (needsProjectScope(errors)) throw new Error(PROJECT_SCOPE_MESSAGE);
-        throw new Error(errors.map((error) => error.message).join(" ") || "GitHub returned no data.");
-      }
+        if (data === null) {
+          if (needsProjectScope(errors)) throw new Error(projectScopeMessage(host));
+          throw new Error(
+            errors.map((error) => error.message).join(" ") || "GitHub returned no data.",
+          );
+        }
 
-      const asUser = data.asUser as { projectV2?: GhProjectV2Node | null } | null;
-      const asOrg = data.asOrg as { projectV2?: GhProjectV2Node | null } | null;
-      const project = asUser?.projectV2 ?? asOrg?.projectV2;
+        const asUser = data.asUser as { projectV2?: GhProjectV2Node | null } | null;
+        const asOrg = data.asOrg as { projectV2?: GhProjectV2Node | null } | null;
+        const project = asUser?.projectV2 ?? asOrg?.projectV2;
 
-      if (project === null || project === undefined) {
-        const message = errors.map((error) => error.message).join(" ");
-        throw new Error(message !== "" ? message : `Project ${owner}/${number} was not found.`);
-      }
+        if (project === null || project === undefined) {
+          const message = errors.map((error) => error.message).join(" ");
+          throw new Error(message !== "" ? message : `Project ${owner}/${number} was not found.`);
+        }
 
-      return {
-        title: typeof project.title === "string" ? project.title : "",
-        url: typeof project.url === "string" ? project.url : "",
-        columns: groupProjectItems(project),
-      };
-    },
+        return {
+          title: typeof project.title === "string" ? project.title : "",
+          url: typeof project.url === "string" ? project.url : "",
+          columns: groupProjectItems(project),
+        };
+      }),
     { force },
   );
 }

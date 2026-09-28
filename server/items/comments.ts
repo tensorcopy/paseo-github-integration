@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { ItemComment, loadComments } from "../../shared/board";
 import { gh } from "../github/gh";
+import { withItemId } from "../github/item-id";
 import { Cache } from "../cache/cache";
 
 /**
@@ -67,35 +68,36 @@ function countOf(value: unknown): number {
 }
 
 async function fetchComments(id: string): Promise<{ comments: ItemComment[]; truncated: boolean }> {
-  const raw = await gh([
-    "api",
-    "graphql",
-    "-f",
-    `query=${COMMENTS_QUERY}`,
-    "-f",
-    `id=${id}`,
-    "-F",
-    `first=${COMMENTS_PAGE}`,
-    "-F",
-    `replies=${REPLIES_PAGE}`,
-  ]);
-  const parsed: unknown = JSON.parse(raw);
-  const node = (parsed as { data?: { node?: unknown } }).data?.node;
-  if (typeof node !== "object" || node === null) {
-    throw new Error("GitHub no longer has this item, or the account cannot see it.");
-  }
-  const connection = (node as { comments?: unknown }).comments;
-  const comments: ItemComment[] = [];
-  let truncated = countOf(connection) > COMMENTS_PAGE;
-  for (const commentNode of commentNodesOf(connection)) {
-    comments.push(toComment(commentNode, 0));
-    // Replies are a discussion's second level; issues and pull requests have none.
-    if (countOf(commentNode.replies) > REPLIES_PAGE) truncated = true;
-    for (const reply of commentNodesOf(commentNode.replies)) {
-      comments.push(toComment(reply, 1));
+  return withItemId(id, async (nodeId) => {
+    const raw = await gh([
+      "api",
+      "graphql",
+      "-f",
+      `query=${COMMENTS_QUERY}`,
+      "-f",
+      `id=${nodeId}`,
+      "-F",
+      `first=${COMMENTS_PAGE}`,
+      "-F",
+      `replies=${REPLIES_PAGE}`,
+    ]);
+    const parsed: unknown = JSON.parse(raw);
+    const node = (parsed as { data?: { node?: unknown } }).data?.node;
+    if (typeof node !== "object" || node === null) {
+      throw new Error("GitHub no longer has this item, or the account cannot see it.");
     }
-  }
-  return { comments: comments.filter((comment) => comment.id !== ""), truncated };
+    const connection = (node as { comments?: unknown }).comments;
+    const comments: ItemComment[] = [];
+    let truncated = countOf(connection) > COMMENTS_PAGE;
+    for (const commentNode of commentNodesOf(connection)) {
+      comments.push(toComment(commentNode, 0));
+      if (countOf(commentNode.replies) > REPLIES_PAGE) truncated = true;
+      for (const reply of commentNodesOf(commentNode.replies)) {
+        comments.push(toComment(reply, 1));
+      }
+    }
+    return { comments: comments.filter((comment) => comment.id !== ""), truncated };
+  });
 }
 
 /** Cached like the body, and for as long; `force` is the same Refresh button. */

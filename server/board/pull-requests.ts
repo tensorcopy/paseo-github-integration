@@ -1,4 +1,5 @@
 import type { BoardItem, LinkedIssue } from "../../shared/board";
+import { encodeItemId, hostnameFromUrl } from "../github/item-id";
 import { attachChecks } from "./checks";
 import { ownedBuckets, personalBuckets, runBuckets, mergeBucketResults } from "./buckets";
 import { toItem } from "./item";
@@ -40,10 +41,11 @@ interface GhPullRequestNode extends GhSearchNode {
 function toLinkedIssues(node: GhPullRequestNode): LinkedIssue[] {
   const nodes = node.closingIssuesReferences?.nodes;
   if (!Array.isArray(nodes)) return [];
+  const hostname = hostnameFromUrl(typeof node.url === "string" ? node.url : "");
   return nodes
     .filter((issue): issue is Record<string, unknown> => typeof issue === "object" && issue !== null)
     .map((issue) => ({
-      id: typeof issue.id === "string" ? issue.id : "",
+      id: typeof issue.id === "string" ? encodeItemId(hostname, issue.id) : "",
       number: typeof issue.number === "number" ? issue.number : 0,
       repository:
         typeof (issue.repository as { nameWithOwner?: unknown } | undefined)?.nameWithOwner ===
@@ -85,7 +87,10 @@ export async function fetchPullRequests(
   const merged = mergeBucketResults<GhPullRequestNode>(
     results,
     (row) => {
-      const id = typeof row.id === "string" ? row.id : String(row.url);
+      const id = encodeItemId(
+        hostnameFromUrl(typeof row.url === "string" ? row.url : ""),
+        typeof row.id === "string" ? row.id : String(row.url),
+      );
       if (row.isDraft === true) drafts.add(id);
       return { ...toItem(row, null, toLastCommitAt(row)), linkedIssues: toLinkedIssues(row) };
     },

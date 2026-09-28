@@ -1,5 +1,6 @@
 import type { BoardItem, CheckSummary } from "../../shared/board";
 import { gh } from "../github/gh";
+import { decodeItemId } from "../github/item-id";
 
 /**
  * The checks on each pull request's head commit, by node id.
@@ -218,7 +219,12 @@ export async function attachChecks(items: readonly BoardItem[]): Promise<BoardIt
   for (let start = 0; start < ids.length; start += CHECKS_BATCH) {
     const batch = ids.slice(start, start + CHECKS_BATCH);
     try {
-      for (const [id, summary] of await fetchChecks(batch)) summaries.set(id, summary);
+      const nodeIds = batch.map((id) => decodeItemId(id).nodeId);
+      const fetched = await fetchChecks(nodeIds);
+      batch.forEach((id, index) => {
+        const summary = fetched.get(nodeIds[index] ?? "");
+        if (summary !== undefined) summaries.set(id, summary);
+      });
     } catch (error) {
       // One batch failing costs its own pills, not every other batch's.
       console.warn(

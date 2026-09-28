@@ -53,7 +53,7 @@ function pointerPoint(event: unknown): { x: number; y: number } | null {
  */
 export const ItemRow = memo(function ItemRow({
   item,
-  viewerLogin,
+  viewerLogins,
   styles,
   platform,
   compact,
@@ -70,7 +70,7 @@ export const ItemRow = memo(function ItemRow({
 }: {
   item: BoardItem;
   /** The login the board was queried for, so a row of someone else's reads as one. */
-  viewerLogin: string;
+  viewerLogins: readonly string[];
   styles: Styles;
   /**
    * Decides two things the row cannot ask about itself: whether hovering
@@ -158,10 +158,11 @@ export const ItemRow = memo(function ItemRow({
   const closes = item.linkedIssues
     .map((issue) => linkedIssueLabel(issue, item.repository))
     .join(", ");
+  const hostname = new URL(item.url).hostname;
 
   const display = describeRow({
     item,
-    viewerLogin,
+    viewerLogins,
     order,
     type,
     accentColor,
@@ -204,7 +205,8 @@ export const ItemRow = memo(function ItemRow({
           {type === "draft-prs" ? <Text style={styles.itemRowDraftPill}>Draft</Text> : null}
         </View>
         <Text style={styles.itemRowMeta} numberOfLines={1}>
-          {item.repository} #{item.number} · {display.stampLabel} {relativeTime(display.stampDate)}
+          {item.repository} #{item.number} · {hostname} · {display.stampLabel}{" "}
+          {relativeTime(display.stampDate)}
           {display.byline !== null ? ` by ${display.byline}` : ""}
         </Text>
         {compact ? <View style={styles.itemRowTrailingCompact}>{trailing}</View> : null}

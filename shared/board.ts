@@ -170,6 +170,8 @@ export const BoardColumnSchema = z.object({
 export const BoardSchema = z.object({
   /** The concrete login every query ran against, never the `@me` alias. */
   login: z.string(),
+  /** Viewer logins for every authenticated gh host included in this response. */
+  viewerLogins: z.array(z.string()),
   columns: z.array(BoardColumnSchema),
   /**
    * `owner/name` to project id, for the repositories on this board only. The
@@ -244,6 +246,7 @@ export const saveLogin = defineRpc({
  */
 export const ProjectSummarySchema = z.object({
   id: z.string(),
+  host: z.string(),
   number: z.number().int(),
   title: z.string(),
   url: z.string(),
@@ -308,6 +311,7 @@ export type ProjectItem = z.output<typeof ProjectItemSchema>;
 export const loadProject = defineRpc({
   name: "board.project",
   input: z.object({
+    host: z.string().min(1),
     owner: z.string().min(1),
     number: z.number().int(),
     force: z.boolean().default(false),
@@ -476,7 +480,7 @@ export type BoardTimelineItem = z.infer<typeof BoardTimelineItemSchema>;
  */
 export const listLabels = defineRpc({
   name: "board.labels",
-  input: z.object({ repository: z.string().min(1) }),
+  input: z.object({ repository: z.string().min(1), host: z.string().min(1) }),
   output: z.object({ labels: z.array(RepositoryLabelSchema) }),
 });
 

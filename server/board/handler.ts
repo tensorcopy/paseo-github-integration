@@ -1,8 +1,11 @@
 import type { z } from "zod";
 import type { PluginHandlerContext } from "@getpaseo/plugin/server";
 import type { BoardColumn, BoardItem, loadBoard } from "../../shared/board";
-import { resolveViewerLogin } from "../github/gh";
-import { readSettings } from "../settings/settings";
+import {
+  type GithubAccount,
+  listGithubAccounts,
+  withGithubHostname,
+} from "../github/host";
 import { loadProjectIndex, repositoryIdFor } from "../launch/project-index";
 import type { PaseoApi } from "../launch/project-index";
 import { fetchDiscussions } from "./discussions";
@@ -51,45 +54,87 @@ async function settle(
   }
 }
 
+async function loadAccountColumns(
+  account: GithubAccount,
+  owners: readonly string[],
+  limit: number,
+): Promise<BoardColumn[]> {
+  return withGithubHostname(account.hostname, async () => {
+    const pullRequests = fetchPullRequests(account.login, owners, limit).then(
+      (split) => ({ split, error: null as string | null }),
+      (error: unknown) => ({
+        split: { draft: [] as BoardItem[], open: [] as BoardItem[] },
+        error: error instanceof Error ? error.message : String(error),
+      }),
+    );
+    const [issues, prs, discussions] = await Promise.all([
+      settle("issues", "Issues", () => fetchIssues(account.login, owners, limit)),
+      pullRequests,
+      settle("discussions", "Discussions", () =>
+        fetchDiscussions(account.login, owners, limit),
+      ),
+    ]);
+    return [
+      issues,
+      { id: "draft-prs", title: "Draft PRs", items: prs.split.draft, error: prs.error },
+      { id: "open-prs", title: "Open PRs", items: prs.split.open, error: prs.error },
+      discussions,
+    ];
+  });
+}
+
+function mergeColumns(
+  accounts: readonly GithubAccount[],
+  results: readonly BoardColumn[][],
+): BoardColumn[] {
+  const ids: readonly BoardColumn["id"][] = ["issues", "draft-prs", "open-prs", "discussions"];
+  const titles: Record<BoardColumn["id"], string> = {
+    issues: "Issues",
+    "draft-prs": "Draft PRs",
+    "open-prs": "Open PRs",
+    discussions: "Discussions",
+  };
+  return ids.map((id) => {
+    const byId = new Map<string, BoardItem>();
+    const errors: string[] = [];
+    results.forEach((columns, index) => {
+      const column = columns.find((candidate) => candidate.id === id);
+      if (column === undefined) return;
+      if (column.error !== null) errors.push(`${accounts[index]?.hostname ?? "GitHub"}: ${column.error}`);
+      for (const item of column.items) byId.set(item.id, item);
+    });
+    return {
+      id,
+      title: titles[id],
+      items: [...byId.values()].sort((left, right) => right.updatedAt.localeCompare(left.updatedAt)),
+      error: errors.length === 0 ? null : errors.join(" "),
+    };
+  });
+}
+
 export async function loadBoardHandler(
   { login, owners, limit, force }: z.output<typeof loadBoard.input>,
   { paseo }: PluginHandlerContext,
 ): Promise<z.input<typeof loadBoard.output>> {
   const requested = login?.trim();
-  const settings = await readSettings();
-  const resolved =
-    requested !== undefined && requested !== "" && requested !== "@me"
-      ? requested
-      : (settings.login ?? (await resolveViewerLogin()));
-
-  const key = `${resolved}\u0000${limit}\u0000${[...owners].sort().join(",")}`;
+  const available = await listGithubAccounts();
+  const accounts =
+    requested === undefined || requested === "" || requested === "@me"
+      ? available
+      : available.filter((account) => account.login.toLowerCase() === requested.toLowerCase());
+  if (accounts.length === 0) {
+    throw new Error(`gh has no authenticated account with login "${requested}".`);
+  }
+  const key = `${accounts.map(({ hostname, login: accountLogin }) => `${hostname}:${accountLogin}`).join(",")}\u0000${limit}\u0000${[...owners].sort().join(",")}`;
 
   const { columns, fetchedAt } = await boardCache.get(
     key,
     BOARD_TTL_MS,
     async () => {
-      // Both pull request columns share one request, so they settle together.
-      const pullRequests = fetchPullRequests(resolved, owners, limit).then(
-        (split) => ({ split, error: null as string | null }),
-        (error: unknown) => ({
-          split: { draft: [] as BoardItem[], open: [] as BoardItem[] },
-          error: error instanceof Error ? error.message : String(error),
-        }),
+      const columns = mergeColumns(
+        accounts,
+        await Promise.all(accounts.map((account) => loadAccountColumns(account, owners, limit))),
       );
-
-      const [issues, prs, discussions] = await Promise.all([
-        settle("issues", "Issues", () => fetchIssues(resolved, owners, limit)),
-        pullRequests,
-        settle("discussions", "Discussions", () => fetchDiscussions(resolved, owners, limit)),
-      ]);
-
-      const columns: BoardColumn[] = [
-        issues,
-        { id: "draft-prs", title: "Draft PRs", items: prs.split.draft, error: prs.error },
-        { id: "open-prs", title: "Open PRs", items: prs.split.open, error: prs.error },
-        discussions,
-      ];
-
       return { columns, fetchedAt: new Date().toISOString() };
     },
     {
@@ -101,7 +146,8 @@ export async function loadBoardHandler(
   );
 
   return {
-    login: resolved,
+    login: accounts[0]?.login ?? "",
+    viewerLogins: accounts.map((account) => account.login),
     ...(await describeRepositoryProjects(paseo, columns)),
     columns,
     fetchedAt,

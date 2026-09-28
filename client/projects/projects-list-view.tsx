@@ -26,15 +26,13 @@ const SCOPE_COMMAND = "gh auth refresh -h github.com -s read:project";
 export function ProjectsListView({
   theme,
   styles,
-  login,
   owners,
   onOpenProject,
 }: {
   theme: PluginSurfaceProps["theme"];
   styles: ProjectsStyles;
-  login: string;
   owners: readonly string[];
-  onOpenProject: (owner: string, number: number) => void;
+  onOpenProject: (host: string, owner: string, number: number) => void;
 }) {
   const fetchProjects = useRpc(listProjects);
 
@@ -56,9 +54,7 @@ export function ProjectsListView({
       setListLoading(true);
       setListError(null);
       try {
-        const input =
-          login === "" ? { owners: [...owners], force } : { login, owners: [...owners], force };
-        const result = await fetchProjects(input);
+        const result = await fetchProjects({ owners: [...owners], force });
         setProjects(result.projects);
         setListError(result.error);
         setNeedsScope(result.needsScope);
@@ -70,7 +66,7 @@ export function ProjectsListView({
         setListLoading(false);
       }
     },
-    [fetchProjects, login, ownersKey],
+    [fetchProjects, ownersKey],
   );
 
   useEffect(() => {
@@ -146,7 +142,7 @@ export function ProjectsListView({
               key={project.id}
               style={styles.projectRow}
               accessibilityRole="button"
-              onPress={() => onOpenProject(project.owner, project.number)}
+              onPress={() => onOpenProject(project.host, project.owner, project.number)}
             >
               <View style={styles.projectRowMain}>
                 <Text style={styles.projectTitle} numberOfLines={1}>
@@ -159,7 +155,9 @@ export function ProjectsListView({
                 </Text>
               ) : null}
               <View style={styles.projectMetaRow}>
-                <Text style={styles.projectMeta}>{project.owner}</Text>
+                <Text style={styles.projectMeta}>
+                  {project.owner} · {project.host}
+                </Text>
                 <Text style={styles.projectMeta}>·</Text>
                 <Text style={styles.projectMeta}>
                   {project.itemCount} {project.itemCount === 1 ? "item" : "items"}

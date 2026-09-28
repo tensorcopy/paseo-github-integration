@@ -56,6 +56,7 @@ export function LabelMenu({
   onChanged: (itemId: string, labels: string[]) => void;
 }) {
   const { item } = target;
+  const host = new URL(item.url).hostname;
   const list = useRpc(listLabels);
   const apply = useRpc(toggleLabel);
 
@@ -68,8 +69,8 @@ export function LabelMenu({
    * did: the surface unmounts on every workspace switch, the cache does not.
    */
   const labelsQuery = useQuery({
-    queryKey: ["repository-labels", item.repository],
-    queryFn: () => list({ repository: item.repository }).then((result) => result.labels),
+    queryKey: ["repository-labels", host, item.repository],
+    queryFn: () => list({ repository: item.repository, host }).then((result) => result.labels),
     staleTime: STALE_AFTER_MS,
   });
   const labels = labelsQuery.data ?? null;

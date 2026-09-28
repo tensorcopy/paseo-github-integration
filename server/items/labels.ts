@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type { RepositoryLabel, listLabels, toggleLabel } from "../../shared/board";
 import { gh } from "../github/gh";
+import { withGithubHostname } from "../github/host";
+import { withItemId } from "../github/item-id";
 import { Cache } from "../cache/cache";
 import { patchCachedLabels } from "../board/cache";
 
@@ -65,8 +67,12 @@ async function fetchRepositoryLabels(repository: string): Promise<RepositoryLabe
 
 export async function listLabelsHandler({
   repository,
+  host,
 }: z.output<typeof listLabels.input>): Promise<z.input<typeof listLabels.output>> {
-  const labels = await labelsCache.get(repository, LABELS_TTL_MS, () => fetchRepositoryLabels(repository));
+  const key = `${host}\u0000${repository}`;
+  const labels = await labelsCache.get(key, LABELS_TTL_MS, () =>
+    withGithubHostname(host, () => fetchRepositoryLabels(repository)),
+  );
   return { labels };
 }
 
@@ -111,16 +117,18 @@ export async function toggleLabelHandler({
   labelId,
   add,
 }: z.output<typeof toggleLabel.input>): Promise<z.input<typeof toggleLabel.output>> {
-  const raw = await gh([
-    "api",
-    "graphql",
-    "-f",
-    `query=${add ? ADD_LABEL_MUTATION : REMOVE_LABEL_MUTATION}`,
-    "-f",
-    `item=${itemId}`,
-    "-f",
-    `label=${labelId}`,
-  ]);
+  const raw = await withItemId(itemId, (nodeId) =>
+    gh([
+      "api",
+      "graphql",
+      "-f",
+      `query=${add ? ADD_LABEL_MUTATION : REMOVE_LABEL_MUTATION}`,
+      "-f",
+      `item=${nodeId}`,
+      "-f",
+      `label=${labelId}`,
+    ]),
+  );
   const parsed: unknown = JSON.parse(raw);
   const data = (parsed as { data?: Record<string, unknown> }).data;
   const labels = labelNamesOf(add ? data?.addLabelsToLabelable : data?.removeLabelsFromLabelable);

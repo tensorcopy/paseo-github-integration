@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { ItemDetails, MergeMethod, ReviewState, loadItem } from "../../shared/board";
 import { gh } from "../github/gh";
+import { withItemId } from "../github/item-id";
 import { Cache } from "../cache/cache";
 
 /**
@@ -140,13 +141,15 @@ function toItemDetails(node: GhItemNode): ItemDetails {
 }
 
 export async function fetchItemDetails(id: string): Promise<ItemDetails> {
-  const raw = await gh(["api", "graphql", "-f", `query=${ITEM_QUERY}`, "-f", `id=${id}`]);
-  const parsed: unknown = JSON.parse(raw);
-  const node = (parsed as { data?: { node?: unknown } }).data?.node;
-  if (typeof node !== "object" || node === null) {
-    throw new Error("GitHub no longer has this item, or the account cannot see it.");
-  }
-  return toItemDetails(node as GhItemNode);
+  return withItemId(id, async (nodeId) => {
+    const raw = await gh(["api", "graphql", "-f", `query=${ITEM_QUERY}`, "-f", `id=${nodeId}`]);
+    const parsed: unknown = JSON.parse(raw);
+    const node = (parsed as { data?: { node?: unknown } }).data?.node;
+    if (typeof node !== "object" || node === null) {
+      throw new Error("GitHub no longer has this item, or the account cannot see it.");
+    }
+    return toItemDetails(node as GhItemNode);
+  });
 }
 
 /**

@@ -1,4 +1,5 @@
 import type { BoardItem } from "../../shared/board";
+import { encodeItemId, hostnameFromUrl } from "../github/item-id";
 import type { GhSearchNode } from "./types";
 
 /** GitHub returns a label as `{ name }`; every list of them needs the same narrowing. */
@@ -23,11 +24,13 @@ export function toItem(
   const repository =
     typeof node.repository?.nameWithOwner === "string" ? node.repository.nameWithOwner : "";
   const ownerSeparator = repository.indexOf("/");
+  const url = typeof node.url === "string" ? node.url : "";
+  const nodeId = typeof node.id === "string" ? node.id : url;
   return {
-    id: typeof node.id === "string" ? node.id : String(node.url),
+    id: encodeItemId(hostnameFromUrl(url), nodeId),
     number: typeof node.number === "number" ? node.number : 0,
     title: typeof node.title === "string" ? node.title : "",
-    url: typeof node.url === "string" ? node.url : "",
+    url,
     repository,
     updatedAt: typeof node.updatedAt === "string" ? node.updatedAt : "",
     createdAt: typeof node.createdAt === "string" ? node.createdAt : "",

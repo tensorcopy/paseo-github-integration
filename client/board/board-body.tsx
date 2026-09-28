@@ -97,7 +97,6 @@ export function BoardBody({
         <ProjectsView
           theme={surfaceProps.theme}
           layout={surfaceProps.layout}
-          login={board.login}
           owners={watchedOwners}
           onOpenUrl={openExternalUrl}
         />

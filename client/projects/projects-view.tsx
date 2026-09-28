@@ -15,6 +15,7 @@ import { buildProjectsStyles } from "./projects.styles";
 
 /** Which project's own board is open, or `null` for the list. */
 interface ProjectTarget {
+  host: string;
   owner: string;
   number: number;
 }
@@ -30,11 +31,10 @@ interface ProjectTarget {
 export function ProjectsView(props: {
   theme: PluginSurfaceProps["theme"];
   layout: PluginSurfaceProps["layout"];
-  login: string;
   owners: readonly string[];
   onOpenUrl: (url: string) => void;
 }): JSX.Element {
-  const { theme, layout, login, owners, onOpenUrl } = props;
+  const { theme, layout, owners, onOpenUrl } = props;
   const styles = useMemo(() => buildProjectsStyles(theme, layout), [theme, layout]);
   const [target, setTarget] = useState<ProjectTarget | null>(null);
 
@@ -43,6 +43,7 @@ export function ProjectsView(props: {
       <ProjectBoardView
         theme={theme}
         styles={styles}
+        host={target.host}
         owner={target.owner}
         number={target.number}
         onOpenUrl={onOpenUrl}
@@ -55,9 +56,8 @@ export function ProjectsView(props: {
     <ProjectsListView
       theme={theme}
       styles={styles}
-      login={login}
       owners={owners}
-      onOpenProject={(owner, number) => setTarget({ owner, number })}
+      onOpenProject={(host, owner, number) => setTarget({ host, owner, number })}
     />
   );
 }

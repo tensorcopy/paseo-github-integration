@@ -1,6 +1,7 @@
 import type { z } from "zod";
 import type { ItemDetails, MergeMethod, approvePullRequest, mergePullRequest } from "../../shared/board";
 import { ghMutation } from "../github/graphql";
+import { withItemId } from "../github/item-id";
 import { dropCachedItem } from "../board/cache";
 import { detailsCache, fetchItemDetails } from "./details";
 
@@ -37,7 +38,7 @@ export async function approveHandler({
   id,
   body,
 }: z.output<typeof approvePullRequest.input>): Promise<z.input<typeof approvePullRequest.output>> {
-  await ghMutation(APPROVE_MUTATION, { id, body });
+  await withItemId(id, (nodeId) => ghMutation(APPROVE_MUTATION, { id: nodeId, body }));
   return refreshDetails(id);
 }
 
@@ -45,7 +46,9 @@ export async function mergeHandler({
   id,
   method,
 }: z.output<typeof mergePullRequest.input>): Promise<z.input<typeof mergePullRequest.output>> {
-  await ghMutation(MERGE_MUTATION, { id, method: MERGE_METHOD_NAMES[method] });
+  await withItemId(id, (nodeId) =>
+    ghMutation(MERGE_MUTATION, { id: nodeId, method: MERGE_METHOD_NAMES[method] }),
+  );
   const details = await refreshDetails(id);
   await dropCachedItem(id);
   return details;
